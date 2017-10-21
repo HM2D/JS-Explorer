@@ -1,0 +1,255 @@
+<!doctype html>
+<html>
+	<!--
+		Author: Hooman Malekzadeh
+		Description: A tool for JavaScript objects/properties exploration and listing (more optimized!)
+	!-->
+	<head>
+		<title>JavaScript Object Explorer</title>
+		<style>
+			#container { width: 750px; background: silver; margin: 20px auto; padding: 10px; color: gray; border-radius: 5px; }
+			input { padding: 3px; }
+			input[name="jsvar"] { width: 250px; font-family: courier; }
+			
+			#display { border: 2px gray solid; border-radius: 5px; color: white; margin: 10px 0; }
+			#display #dtitle { background: gray; border-radius: 2px 0; padding: 10px 5px; }
+			#display #dmsg { min-height: 20px; }
+			#clear { float: right; cursor: pointer; text-decoration: none; color: white; background: red; padding: 2px 10px; border-radius: 5px; }
+			#clear:hover { background: gold; }
+			.rtitle { padding: 8px; background: #006; text-align: center;}
+			.rtitle input { border: 1px solid red;}
+			.rtext { max-height: 200px; overflow: auto; margin-bottom: 5px; }
+			.rtext td {min-width: 100px;}
+		</style>
+	</head>
+	<body>
+		<div id="container">
+			<h1>Explore properties of JS/BOM/DOM objects</h1>
+			<form name="frm1" method="post">
+				Show properties of : <input type="text" name="jsvar" value="document"/><br>
+<br>
+
+				filtered by Name: <input type="text" name="pfilter" value=""/>
+                filtered by Value: <input type="text" name="Vfilter" value=""/>
+				<input type="submit" name="show" value="Show"/>
+			</form>
+			<div id="display">
+				<div id="dtitle">Display <a href="" id="clear">Clear</a></div>
+				<div id="dmsg"></div>
+			</div>
+		</div>
+		<script>
+			(function(){
+				var frm = document.forms.frm1;
+				var dmsg = document.getElementById('dmsg');
+				var clear = document.getElementById('clear');
+				var i = 0;
+				function displayGivenObjectInfo(event){
+			
+					eval('res = ' + frm.jsvar.value +';');
+					var resTable = filteredPropertiesTable(res, frm.pfilter.value);
+					var filterStr = '<br><br>filtered by name: <input type="text" class="refilter" value="' + frm.pfilter.value + '"/>' + "<br><br>" +  'filtered by Value: <input type="text" class = "refilter" value="' + frm.Vfilter.value + '"/>' + "<br><br>" +"<input type='radio' class= 'refilter' name='myradio" + i +"' checked='checked' id='allp'> All properties &nbsp <input type='radio' class= 'refilter' name='myradio" + i +"' id='JM' >Just Methods &nbsp <input type='radio' class= 'refilter' name='myradio" + i +"'>Just Attributes" ; 
+					var resStr = '';
+					
+					resStr += '<div class="res">';
+					resStr += ' <div class="rtitle">' + frm.jsvar.value + '={' + res + '} ' + filterStr + '</div>';
+					resStr += ' <div class="rtext">' + resTable + '</div>';
+					resStr += '</div>';
+					
+					
+					var div = document.createElement('div');
+					div.innerHTML = resStr;
+					// add current expression results on top of the message display
+					dmsg.appendChild(div);
+					
+					//////////////////////////Event Adder For inputs
+					var refilterInput = dmsg.childNodes[i].getElementsByClassName('refilter')[0];
+					refilterInput.addEventListener('keyup',searchbyname);
+		       
+					
+					
+					var refilterInputvalue = dmsg.childNodes[i].getElementsByClassName('refilter')[1];
+					refilterInputvalue.addEventListener('keyup',searchbyvalue);
+						
+					///////////////////////////////////////////////////////Radio Buttons	
+					var allp = 	dmsg.childNodes[i].getElementsByClassName('refilter')[2];
+                  
+				   allp.onclick = function (){////all properties 
+						   	refilterInput.removeEventListener('keyup',searchByNameJustMethods);
+							refilterInput.removeEventListener('keyup',searchByNameJustAttribute);
+						   	refilterInput.addEventListener('keyup',searchbyname);
+						   	
+							refilterInputvalue.removeEventListener('keyup',searchByValueJustMethods);
+							refilterInputvalue.removeEventListener('keyup',searchByNameJustAttribute);
+						    refilterInputvalue.addEventListener('keyup',searchbyvalue);
+							
+							var rtextDiv = refilterInput.parentNode.parentNode.getElementsByClassName('rtext')[0];
+						    rtextDiv.innerHTML = filteredPropertiesTable(res, " ");   
+					   
+					   };
+					   var jm = dmsg.childNodes[i].getElementsByClassName('refilter')[3];
+					   jm.onclick = function(){/////just methods
+					        refilterInput.removeEventListener('keyup',searchbyname);
+							refilterInput.removeEventListener('keyup',searchByNameJustAttribute);
+						   	refilterInput.addEventListener('keyup',searchByNameJustMethods);
+							
+		                   	refilterInputvalue.removeEventListener('keyup',searchbyvalue);
+							refilterInputvalue.removeEventListener('keyup',searchByNameJustAttribute);
+						    refilterInputvalue.addEventListener('keyup',searchByValueJustMethods);
+							
+							var rtextDiv = refilterInput.parentNode.parentNode.getElementsByClassName('rtext')[0];
+						    rtextDiv.innerHTML = filteredPropertiesTableJustMethods(res, "");
+					    };
+						
+						
+						var ja = dmsg.childNodes[i].getElementsByClassName('refilter')[4];
+						ja.onclick = function(){ /////just Attributes
+							refilterInput.removeEventListener('keyup',searchByNameJustMethods);
+							refilterInput.removeEventListener('keyup',searchbyname);
+							refilterInput.addEventListener('keyup',searchByNameJustAttribute);
+						   	
+							refilterInputvalue.removeEventListener('keyup',searchbyvalue);
+							refilterInputvalue.removeEventListener('keyup',searchByValueJustMethods);
+							refilterInputvalue.addEventListener('keyup',searchByValueJustAttribute);
+						   	
+							
+								var rtextDiv = refilterInput.parentNode.parentNode.getElementsByClassName('rtext')[0];
+						    rtextDiv.innerHTML = filteredPropertiesTableByValueJustAttribute(res, "");
+					
+						  };
+						 ////////////////////////////////////////////  
+					i++;
+			       event.preventDefault(); // prevent referesh of page because of form post back
+				};
+				////////////////////Listeners
+				 function searchbyname(e){
+					   console.log(e);
+						var rtextDiv = e.target.parentNode.parentNode.getElementsByClassName('rtext')[0];
+						rtextDiv.innerHTML = filteredPropertiesTable(res, e.target.value);
+					}
+				 function searchbyvalue(e){ 
+				 	var rtextDiv = e.target.parentNode.parentNode.getElementsByClassName('rtext')[0];
+						rtextDiv.innerHTML = filteredPropertiesTableByValue(res, e.target.value);
+				  					 }	
+				function  searchByNameJustMethods(e){
+						var rtextDiv = e.target.parentNode.parentNode.getElementsByClassName('rtext')[0];
+						rtextDiv.innerHTML = filteredPropertiesTableJustMethods(res, e.target.value);
+					
+					}
+				function searchByValueJustMethods(e){
+						var rtextDiv = e.target.parentNode.parentNode.getElementsByClassName('rtext')[0];
+						rtextDiv.innerHTML = filteredPropertiesTableByValueJustMethods(res, e.target.value);
+					
+					}						 
+				function searchByNameJustAttribute(e){
+						var rtextDiv = e.target.parentNode.parentNode.getElementsByClassName('rtext')[0];
+						rtextDiv.innerHTML = filteredPropertiesTableJustAttribute(res, e.target.value);
+					
+					
+					}
+				function searchByValueJustAttribute(e){
+						var rtextDiv = e.target.parentNode.parentNode.getElementsByClassName('rtext')[0];
+						rtextDiv.innerHTML = filteredPropertiesTableByValueJustAttribute(res, e.target.value);
+					
+					
+					}	
+					
+/////////////////////////////////////////////////////////////////table filters
+				////////filters for Name
+				function filteredPropertiesTable(res, filter){
+					var regExp = new RegExp('\\S*' + filter + '\\S*', 'i'); // regular expression for filtering
+					var resTable = '<table>';
+					if(typeof res != 'string')
+						for(key in res)
+							if(regExp.test(key))
+								resTable += '<tr><td>' + key + '</td><td>' + res[key] + '</td></tr>';
+					resTable += '</table>';
+					return resTable;
+					}
+					
+				function filteredPropertiesTableJustMethods(res, filter){
+					var regExp = new RegExp('\\S*' + filter + '\\S*', 'i'); // regular expression for filtering
+					var resTable = '<table>';
+					if(typeof res != 'string')
+						for(key in res)
+							if(regExp.test(key)){ var funcToText = res[key] + "";
+							    if(funcToText.indexOf("function") > -1)
+								resTable += '<tr><td>' + key + '</td><td>' + res[key] + '</td></tr>';}
+					resTable += '</table>';
+					return resTable;
+					
+					
+					}
+				function filteredPropertiesTableJustAttribute(res, filter){
+					var regExp = new RegExp('\\S*' + filter + '\\S*', 'i'); // regular expression for filtering
+					var resTable = '<table>';
+					if(typeof res != 'string')
+						for(key in res)
+							if(regExp.test(key)){
+								               var funcToText = res[key] + "";
+											   //////////console.log(funcToText.indexOf("function"));
+								if(funcToText.indexOf("function") == -1)			   
+								resTable += '<tr><td>' + key + '</td><td>' + res[key] + '</td></tr>';}
+					resTable += '</table>';
+					return resTable;
+					
+					}	
+					
+			/////////////////filters for value			
+				function filteredPropertiesTableByValue(res, filter){
+					var regExp = new RegExp('\\S*' + filter + '\\S*', 'i'); // regular expression for filtering
+					var resTable = '<table>';
+					if(typeof res != 'string')
+						for(key in res)
+							if(regExp.test(res[key]))
+								resTable += '<tr><td>' + key + '</td><td>' + res[key] + '</td></tr>';
+					resTable += '</table>';
+					return resTable;}
+				function filteredPropertiesTableByValueJustMethods(res, filter){
+						var regExp = new RegExp('\\S*' + filter + '\\S*', 'i'); // regular expression for filtering
+					var resTable = '<table>';
+					if(typeof res != 'string')
+						for(key in res)
+							if(regExp.test(res[key])){
+								               var funcToText = res[key] + "";
+								if(funcToText.indexOf("function")> -1)			   
+								resTable += '<tr><td>' + key + '</td><td>' + res[key] + '</td></tr>';}
+					resTable += '</table>';
+					return resTable;}
+					
+				function filteredPropertiesTableByValueJustAttribute(res , filter){
+					var regExp = new RegExp('\\S*' + filter + '\\S*', 'i'); // regular expression for filtering
+					var resTable = '<table>';
+					if(typeof res != 'string')
+						for(key in res)
+							if(regExp.test(res[key])){
+								               var funcToText = res[key] + "";
+											   //////////console.log(funcToText.indexOf("function"));
+								if(funcToText.indexOf("function") == -1)			   
+								resTable += '<tr><td>' + key + '</td><td>' + res[key] + '</td></tr>';}
+					resTable += '</table>';
+					return resTable;
+					
+					
+					}
+/////////////////////////////////////////////////////////	
+				function clearDisplay(event){
+					dmsg.innerHTML = '';
+					i=0;
+					event.preventDefault();
+				};
+				
+				// setting event handlers
+				if(frm.addEventListener){
+					// for most browsers (FF, Chrome, Safari)
+					frm.addEventListener('submit', displayGivenObjectInfo);
+					clear.addEventListener('click', clearDisplay);
+				}else if(frm.attachEvent){
+					// for IE <= 8 (notice the difference between event string: 'event' vs. 'onevent' )
+					frm.attachEvent('onsubmit', displayGivenObjectInfo);
+					clear.attachEvent('onclick', clearDisplay);
+				}
+			})();
+		</script>
+	</body>
+</html>
